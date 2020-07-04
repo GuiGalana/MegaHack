@@ -30,14 +30,20 @@ void colisao (float frotaColisao,double latColisao, double longiColisao, int spi
 
 //************************************** VARIAVEIS & DEFINES *******************************
 //******************************************************************************************
+// ----------:> identificação do bordo
+float vFrota = 101;              //MINHA FROTA
+
 // ----------:> Bluetooth
-BluetoothSerial SerialBT;
+#if !defined(CONFIG_BT_ENABLED) || !defined(CONFIG_BLUEDROID_ENABLED)
+#error ERRO BLUETOOTH!
+#endif
+BluetoothSerial BT;
+char DataBtRecived[350];
 
 // ----------:> Serial
 #define BAUD_RATE_SERIAL 9600
 #define baudrate 9600
 SoftwareSerial sim808(32, 33); //  RX,  TX modem sim808
-#define FROTA 101              //MINHA FROTA
 #define DEBUG   1              //print serial sim808
 
 // ----------:> GPS
@@ -57,15 +63,13 @@ double vSpin = 0;
 // ----------:> ARQUIVO
 File root;
 char NomeArquivo[17];
-char trama[200];
 
 // -----------:> TasK
 static uint8_t taskCoreZero = 0; // nucleo
-//static uint8_t taskCoreOne  = 1;
+static uint8_t taskCoreOne  = 1; // nucleo
 
 // -----------:> SIM900
 int conectadoTCP = 0;
-char pacote[300];
 char response[300];
 int tamPacote = 0;
 #define PINreset 35
@@ -95,10 +99,32 @@ float vConsumo = -1.0;
 MCP_CAN CAN0(10);
 #define INT_CAN 2
 
-
-
 //************************************** FUNÇÕES *******************************************
 //******************************************************************************************
+void Start_BT(){
+  BT.begin("MeuBordo-"+(String)vFrota);
+  Serial.println("Bluetooth inicializado");
+}
+void Escreve_BT(char DataBtSend[350]){
+  if (BT.available()) {
+    BT.println(DataBtSend); 
+  }
+}
+
+
+void Leitura_BT(){
+  int i=0;
+
+  if (BT.available() > 0) {
+    while(BT.available() > 0){
+        char c = BT.read();
+        DataBtRecived[i++] = c;
+    }
+    DataBtRecived[i]=0x00;
+    Serial.println(DataBtRecived);
+  }
+}
+
 int8_t sendATcommand(char *ATcommand, char *expected_answer1, unsigned int timeout)
 {
   //char response[300];
@@ -283,7 +309,7 @@ void enviaGPRS()
   Serial.println("Enviando pacote");
   snprintf(aux_str, sizeof(aux_str), "AT+CIPSEND=%d", tamPacote);
   sendATcommand(aux_str, ">", 2000);
-  sendATcommand(pacote, "SEND OK", 2000);
+  //sendATcommand(pacote, "SEND OK", 2000);
 }
 
 void connectGPRS()
@@ -358,6 +384,7 @@ void beginSim808()
   }
 }
 
+/*
 boolean tcp_process(void)
 { // recebe dados wifi
   int j = 0;
@@ -389,8 +416,9 @@ boolean tcp_process(void)
     }
   }
   return false;
-}
+}*/
 
+/*
 void salva_trama()
 {
   sprintf(trama, "%d,%d,%f,%f,%d,%d,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f\r\n", Data, Hora, Lat, Longi, velocidade_nos, vSpin, vRPM, vTorque, vNivelTanque, vConsumo);
@@ -408,15 +436,28 @@ void salva_trama()
     Serial.print("Erro ao tentar escrever ");
     Serial.println(NomeArquivo);
   }
-}
+}/*/
 
 void monta_trama(char quemChama[100], char pacoteTrama[300]) //função que chama a trama, pacote da msg
 {
+  /*------------------cabeçalhos 
+  //bluetooth :  comando,id,frota, 
+  //zig
+  //GTFEW  
+  //-------------------------*/
+  char DataSend [350];
+  int id=0;
+  String comando;
   tamPacote = 0;
   tamPacote = strlen(pacoteTrama);
-  if(strcmp (quemChama, "colisao") == 0){
-    Serial.println("Entrou na chamada ");
-    //zig
+  if(strcmp (quemChama, "colisao") == 0){   //id 2
+      comando = "e32bt";
+      id=2;
+      //bt
+      sprintf(DataSend,"%s,%d,%f,%s",comando,id,vFrota,pacoteTrama);
+      Serial.println(DataSend);
+      Escreve_BT(DataSend);
+
     //bt 
     //GTFEW
   }
@@ -428,7 +469,7 @@ void monta_trama(char quemChama[100], char pacoteTrama[300]) //função que cham
     enviaGPRS();
   }*/
 }
-
+/*
 void inicia_WiFi()
 {
   WiFi.mode(WIFI_AP);                     // configura como master
@@ -438,7 +479,7 @@ void inicia_WiFi()
   Serial.print("Wifi configurado ...");
   Serial.print("IP address: ");
   Serial.println(IP);
-}
+}*/
 
 void limpa_variavel()
 {
@@ -486,7 +527,9 @@ for(i=0;i<4;i++){ // projeta de quem chama a funcao
     
     if(resultRaio < raiocolisao){
       PontColisao[i] = 1;
-      monta_trama("colisao","texto da merda");
+      char texto [200];
+      sprintf(texto,"%f,%f,%f",frotaColisao,LatProjetada[i],LongProjetada[i]);
+      monta_trama("colisao",texto);
       //manda por bt para tela a colisão
 
     }
@@ -507,6 +550,8 @@ void setup()
 {
   Serial.begin(BAUD_RATE_SERIAL);
   Serial.setTimeout(100);
+  
+  Start_BT();
 
   gps_serial.begin(9600, SERIAL_8N1, RXgps, TXgps);
   gps_serial.setTimeout(250);
@@ -556,5 +601,6 @@ void loop()
   limpa_variavel();
   */
   colisao(211,-21.222722,-50.419890,115,50);//frota do outro, lat, long,spin, velo km/h
+  Leitura_BT();
   delay(1000);
 }
