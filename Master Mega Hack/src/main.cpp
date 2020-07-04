@@ -32,6 +32,10 @@ void colisao (float frotaColisao,double latColisao, double longiColisao, int spi
 //******************************************************************************************
 // ----------:> identificação do bordo
 float vFrota = 101;              //MINHA FROTA
+char vEstado[1];
+char vOperacao[20];
+int vCodigoOperacao=0;
+boolean vTelaConnected =0;
 
 // ----------:> Bluetooth
 #if !defined(CONFIG_BT_ENABLED) || !defined(CONFIG_BLUEDROID_ENABLED)
@@ -39,6 +43,7 @@ float vFrota = 101;              //MINHA FROTA
 #endif
 BluetoothSerial BT;
 char DataBtRecived[350];
+char DataBtSend[350];
 
 // ----------:> Serial
 #define BAUD_RATE_SERIAL 9600
@@ -101,28 +106,42 @@ MCP_CAN CAN0(10);
 
 //************************************** FUNÇÕES *******************************************
 //******************************************************************************************
+
+void TaskBT(void *pvParameters)
+{
+  int i=0;
+  while (true)
+  {
+    if (BT.available() > 0) {
+      while(BT.available() > 0){
+          char c = BT.read();
+          DataBtRecived[i++] = c;
+
+          if (DataBtSend != 0){
+             BT.println(DataBtSend);
+          }
+      }
+      Serial.print(DataBtRecived);
+      Serial.println(DataBtSend);
+      //Serial.println(strlen(DataBtRecived));
+      //Serial.println(strcmp (DataBtRecived, "CONNECT\r\n"));
+    }
+    
+    if (strcmp (DataBtRecived, "CONNECT\r\n") == 0){
+        vTelaConnected =1;
+    }
+
+    DataBtRecived[i]=0x00;
+    DataBtSend[i]=0x00;
+    i=0;
+  }
+  vTaskDelay(10);
+  esp_task_wdt_reset();
+}
+
 void Start_BT(){
   BT.begin("MeuBordo-"+(String)vFrota);
   Serial.println("Bluetooth inicializado");
-}
-void Escreve_BT(char DataBtSend[350]){
-  if (BT.available()) {
-    BT.println(DataBtSend); 
-  }
-}
-
-
-void Leitura_BT(){
-  int i=0;
-
-  if (BT.available() > 0) {
-    while(BT.available() > 0){
-        char c = BT.read();
-        DataBtRecived[i++] = c;
-    }
-    DataBtRecived[i]=0x00;
-    Serial.println(DataBtRecived);
-  }
 }
 
 int8_t sendATcommand(char *ATcommand, char *expected_answer1, unsigned int timeout)
@@ -384,7 +403,6 @@ void beginSim808()
   }
 }
 
-
 /*
 void salva_trama()
 {
@@ -417,15 +435,22 @@ void monta_trama(char quemChama[100], char pacoteTrama[300]) //função que cham
   String comando;
   tamPacote = 0;
   tamPacote = strlen(pacoteTrama);
+
+  if(strcmp (quemChama, "tela_connectada") == 0){   //id 1
+      comando = "e32bt";
+      id=1;
+      //bt
+      sprintf(DataSend,"%s,%d,%f,%s",comando,id,vFrota,pacoteTrama);
+  }
+
   if(strcmp (quemChama, "colisao") == 0){   //id 2
       comando = "e32bt";
       id=2;
       //bt
       sprintf(DataSend,"%s,%d,%f,%s",comando,id,vFrota,pacoteTrama);
-      Serial.println(DataSend);
-      Escreve_BT(DataSend);
-
-    //bt 
+      if (DEBUG == 1){
+          Serial.println(DataSend);
+      }
     //GTFEW
   }
 /*
@@ -436,17 +461,35 @@ void monta_trama(char quemChama[100], char pacoteTrama[300]) //função que cham
     enviaGPRS();
   }*/
 }
-/*
-void inicia_WiFi()
-{
-  WiFi.mode(WIFI_AP);                     // configura como master
-  WiFi.softAP("GalaInZe", "paodequeijo"); // rede, senha
-  Server.begin();                         // inicia servidor wifi
-  IPAddress IP = WiFi.softAPIP();         //request ip server
-  Serial.print("Wifi configurado ...");
-  Serial.print("IP address: ");
-  Serial.println(IP);
-}*/
+
+void tela_connectada(void *pvParameters){
+  //estado, operacao, data, hora,time
+  vEstado[1] = 'E';
+  //vOperacao[20];
+  vCodigoOperacao= 999;
+
+  int redundancia =0;
+  char texto [200];
+  while (true){
+
+      sprintf(texto,"%c,%s,%d,",vEstado,vOperacao,vCodigoOperacao);
+      Serial.println(".");
+
+      if (vTelaConnected == 1){
+        Serial.println("Entrou com connect do bt");
+          redundancia =0;
+          monta_trama("tela_connectada",texto);
+      }
+
+      if(redundancia < 10){
+          redundancia++;
+          monta_trama("tela_connectada",texto);
+          vTelaConnected =0;
+      }
+  }
+  vTaskDelay(10);
+  esp_task_wdt_reset();
+}
 
 void limpa_variavel()
 {
@@ -463,6 +506,7 @@ void colisao (float frotaColisao, double latColisao, double longiColisao, int sp
   int i=0, raiocolisao =5; //raio para colisão 5 m
   float toleranciaImprecisao = 1.2,resultRaio =0;; //20% de tolerancia para o erro do gps
   double resultLat =0, resultLong = 0;
+  //valores para teste
   Lat = -21.222722;
   Longi = -50.419890;
   vSpin = 115;
@@ -498,7 +542,6 @@ for(i=0;i<4;i++){ // projeta de quem chama a funcao
       sprintf(texto,"%f,%f,%f",frotaColisao,LatProjetada[i],LongProjetada[i]);
       monta_trama("colisao",texto);
       //manda por bt para tela a colisão
-
     }
     else{
       PontColisao[i]=0;
@@ -506,9 +549,7 @@ for(i=0;i<4;i++){ // projeta de quem chama a funcao
       if (DEBUG == 1){
         Serial.printf("colisão [%d] - lat: %f , Long: %f, chance colidir: %d\n",i,LatProjetadaColisao[i],LongProjetadaColisao[i],PontColisao[i]);
       }
-      
   }
-  
 }
 
 //************************************** SETUP *********************************************
@@ -529,7 +570,6 @@ void setup()
 
   Serial.println("iniciando...");
 
-  //inicia_WiFi();
   //resetSIM808(); // liga sim808 sem precisar do botão
   //beginSim808(); // testa placa on
 
@@ -542,17 +582,33 @@ void setup()
       NULL,                // referência para a tarefa (pode ser NULL) /
       taskCoreZero);       //nucleo esp 32 -(0 ou 1)
 
-  delay(1000);
+  xTaskCreatePinnedToCore( //Bluetooth
+      TaskBT,                 // função que implementa a tarefa /
+      "TaskBT",           // nome da tarefa /
+      10000,               // número de palavras a serem alocadas para uso com a pilha da tarefa /
+      NULL,                // parâmetro de entrada para a tarefa (pode ser NULL) /
+      2,                   // prioridade da tarefa (0 a N). maior mais alto /
+      NULL,                // referência para a tarefa (pode ser NULL) /
+      taskCoreOne);       //nucleo esp 32 -(0 ou 1)
 
+  xTaskCreatePinnedToCore( //Bluetooth
+      tela_connectada ,                 // função que implementa a tarefa /
+      "tela_connectada",           // nome da tarefa /
+      10000,               // número de palavras a serem alocadas para uso com a pilha da tarefa /
+      NULL,                // parâmetro de entrada para a tarefa (pode ser NULL) /
+      1,                   // prioridade da tarefa (0 a N). maior mais alto /
+      NULL,                // referência para a tarefa (pode ser NULL) /
+      taskCoreOne);       //nucleo esp 32 -(0 ou 1)
+     
+
+  delay(1000);
   //connectGPRS(); // connecta TCP
 
-  //incia_CAN();
-
   Serial.println("Aguarde");
+  DataBtSend[0]=0;
   delay(1000);
 
   //hora_no_arquivo();
-
   //inicia_SD();
 }
 
@@ -561,13 +617,7 @@ void setup()
 
 void loop()
 {
-  /*
-  interrup_CAN();
-  salva_trama();
-  delay(1000); //ciclo 10s
-  limpa_variavel();
-  */
-  colisao(211,-21.222722,-50.419890,115,50);//frota do outro, lat, long,spin, velo km/h
-  Leitura_BT();
+  //teste colisão
+  //colisao(211,-21.222722,-50.419890,115,50);//frota do outro, lat, long,spin, velo km/h
   delay(1000);
 }
