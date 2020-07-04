@@ -384,39 +384,6 @@ void beginSim808()
   }
 }
 
-/*
-boolean tcp_process(void)
-{ // recebe dados wifi
-  int j = 0;
-  for (int i = 0; i < MAX_CLIENTS; i++)
-  {
-    if (Client[i].connected()) //identifica clientes
-    {
-      if (Client[i].available() > 0) //Verifica se tem dados
-      {
-        while (Client[i].available() > 0)
-        {
-          char c = Client[i].read();
-          DataRec[j++] = c;
-        }
-        DataRec[j] = 0x00;
-        if (DEBUG == 1)
-        {
-          Serial.println("Recebeu dados por WiFi:");
-          Serial.println(DataRec);
-        }
-        return true;
-      }
-    }
-    else //Se não tem ngm conectado
-    {
-      Client[i] = Server.available(); //libera posição para novo cliente
-      delay(1);
-      return false;
-    }
-  }
-  return false;
-}*/
 
 /*
 void salva_trama()
