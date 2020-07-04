@@ -62,7 +62,7 @@ unsigned int velocidade = 0; // velocidade em km/h
 unsigned int velocidade_nos = 0; // velocidade em nós
 double Lat = 0;
 double Longi = 0;
-double vSpin = 0;
+int vSpin = 0;
 #define velocidade_minima 1.5 //velocidade minima km/h
 
 // ----------:> ARQUIVO
@@ -427,8 +427,8 @@ void monta_trama(char quemChama[100], char pacoteTrama[300]) //função que cham
 {
   /*------------------cabeçalhos 
   //bluetooth :  comando,id,frota, 
-  //zig
-  //GTFEW  
+  //zig       :  
+  //GTFEW     :
   //-------------------------*/
   char DataSend [350];
   int id=0;
@@ -453,13 +453,6 @@ void monta_trama(char quemChama[100], char pacoteTrama[300]) //função que cham
       }
     //GTFEW
   }
-/*
-  if (ComandoRec[0] == 'S' || ComandoRec[0] == 'I')
-  { //protege para não subir lixo
-    sprintf(pacote, "%d,%s,%s,%s,%s,%s", FROTA, Data, Hora, Lat, Longi, DataRec);
-    Serial.println(pacote);
-    enviaGPRS();
-  }*/
 }
 
 void tela_connectada(void *pvParameters){
@@ -472,8 +465,7 @@ void tela_connectada(void *pvParameters){
   char texto [200];
   while (true){
 
-      sprintf(texto,"%c,%s,%d,",vEstado,vOperacao,vCodigoOperacao);
-      Serial.println(".");
+      sprintf(texto,"%c,%s,%d,%d,%d,%f,%f,%d,%f,%f,%f,%f",vEstado,vOperacao,vCodigoOperacao,Data,Hora,velocidade_nos,vSpin,Lat,Longi,vNivelTanque,vConsumo);
 
       if (vTelaConnected == 1){
         Serial.println("Entrou com connect do bt");
@@ -552,6 +544,39 @@ for(i=0;i<4;i++){ // projeta de quem chama a funcao
   }
 }
 
+void maquina_estado()
+{
+  //torque, velocidade, colisao, rpm, ponto fixo
+  //----------------------------estados
+  //  Efeivo -- Puxando ou empurrando
+  //  Parada -- cod de parada ou ponto fixo
+  //  Deslocamento
+  
+  int inicioManobra=0;
+  int motor_ligado =200;
+  
+  if(velocidade > velocidade_minima && vRPM > motor_ligado){   //Deslocamento motor ligado e velocidade maior que 1.5
+    vEstado[0] = 'D';
+  }
+
+  
+  
+
+}
+
+void alarme_operacionais(){
+}
+
+void calcula_consumo()
+{
+ float reg_coef0 = 24.905251702;
+ float reg_coef1 = 11.04978200;
+ float reg_intercept_= 2.9715984714;
+
+ vConsumo = reg_coef0*(velocidade/36.48)+(reg_coef1*pow(vRPM,2)/pow(2280,2))+reg_intercept_;
+
+}
+
 //************************************** SETUP *********************************************
 //******************************************************************************************
 void setup()
@@ -568,7 +593,7 @@ void setup()
   pinMode(PINreset, OUTPUT); // reset a placa processo padrão quando inicia
   digitalWrite(PINreset, LOW);
 
-  Serial.println("iniciando...");
+  Serial.println("Iniciando Computador de bordo...");
 
   //resetSIM808(); // liga sim808 sem precisar do botão
   //beginSim808(); // testa placa on
@@ -583,31 +608,26 @@ void setup()
       taskCoreZero);       //nucleo esp 32 -(0 ou 1)
 
   xTaskCreatePinnedToCore( //Bluetooth
-      TaskBT,                 // função que implementa a tarefa /
-      "TaskBT",           // nome da tarefa /
+      TaskBT,              // função que implementa a tarefa /
+      "TaskBT",            // nome da tarefa /
       10000,               // número de palavras a serem alocadas para uso com a pilha da tarefa /
       NULL,                // parâmetro de entrada para a tarefa (pode ser NULL) /
       2,                   // prioridade da tarefa (0 a N). maior mais alto /
       NULL,                // referência para a tarefa (pode ser NULL) /
-      taskCoreOne);       //nucleo esp 32 -(0 ou 1)
+      taskCoreOne);        //nucleo esp 32 -(0 ou 1)
 
-  xTaskCreatePinnedToCore( //Bluetooth
-      tela_connectada ,                 // função que implementa a tarefa /
-      "tela_connectada",           // nome da tarefa /
+  xTaskCreatePinnedToCore( //tela
+      tela_connectada ,    // função que implementa a tarefa /
+      "tela_connectada",   // nome da tarefa /
       10000,               // número de palavras a serem alocadas para uso com a pilha da tarefa /
       NULL,                // parâmetro de entrada para a tarefa (pode ser NULL) /
       1,                   // prioridade da tarefa (0 a N). maior mais alto /
       NULL,                // referência para a tarefa (pode ser NULL) /
-      taskCoreOne);       //nucleo esp 32 -(0 ou 1)
+      taskCoreOne);        //nucleo esp 32 -(0 ou 1)
      
 
   delay(1000);
   //connectGPRS(); // connecta TCP
-
-  Serial.println("Aguarde");
-  DataBtSend[0]=0;
-  delay(1000);
-
   //hora_no_arquivo();
   //inicia_SD();
 }
