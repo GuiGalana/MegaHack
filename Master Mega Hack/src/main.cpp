@@ -9,6 +9,7 @@
 #include "mcp_can.h"
 #include "mcp_can_dfs.h"
 #include <SPI.h>
+#include <math.h>
 
 //versão 1.0
 
@@ -25,6 +26,7 @@ void monta_trama();
 float dataProcess(unsigned char input[8], int position, double factor, int offset, int dataLenght);
 void getData(unsigned long int id, unsigned char data);
 void sendInfo();
+void colisao (float frotaColisao,double latColisao, double longiColisao, int spinColisao,int veloColisao);
 
 //************************************** VARIAVEIS & DEFINES *******************************
 //******************************************************************************************
@@ -36,7 +38,7 @@ BluetoothSerial SerialBT;
 #define baudrate 9600
 SoftwareSerial sim808(32, 33); //  RX,  TX modem sim808
 #define FROTA 101              //MINHA FROTA
-#define DEBUG 0                //print serial sim808
+#define DEBUG   1              //print serial sim808
 
 // ----------:> GPS
 TinyGPSPlus gps;
@@ -92,6 +94,8 @@ float vNivelTanque = -1.0;
 float vConsumo = -1.0;
 MCP_CAN CAN0(10);
 #define INT_CAN 2
+
+
 
 //************************************** FUNÇÕES *******************************************
 //******************************************************************************************
@@ -387,130 +391,12 @@ boolean tcp_process(void)
   return false;
 }
 
-void getData(unsigned long int id, unsigned char data[8])
-{
-
-  pgn = (id & 0xffff00);
-  pgn = pgn >> 8;
-
-  id = (id & 0x00FFFFFF);
-
-  if (pgn == 0xF004)
-  {
-    vRPM = dataProcess(data, 3, 1, 0, 2);
-    vRPM = vRPM * 0.125;
-    vTorque = dataProcess(data, 2, 1, -125.00, 1);
-  }
-  if (pgn == 0xFEFC)
-  {
-    vNivelTanque = dataProcess(data, 1, 0.4, 0, 1);
-  }
-
-  if (millis() - LastTime >= TimeInfo)
-  {
-    LastTime = millis();
-  }
-}
-
-void incia_CAN()
-{
-  Serial.println("CANConnect Diagnostico");
-
-  if (CAN0.begin(MCP_STDEXT, CAN_250KBPS, MCP_8MHZ) == CAN_OK)
-  {
-    Serial.print("CANConnect Started\r\n");
-  }
-  else
-  {
-    Serial.print("CANConnect Failed\r\n");
-  }
-
-  CAN0.init_Filt(0, 1, 0x00);
-  CAN0.init_Mask(1, 1, 0x00);
-  CAN0.setMode(MCP_NORMAL);
-  Serial.println("");
-}
-
-void interrup_CAN()
-{
-  if (!digitalRead(INT_CAN))
-  {
-    //Leitura do Barramento CAN
-    CAN0.readMsgBuf(&rxId, &len, rxBuf);
-    getData(rxId, rxBuf);
-  }
-}
-
-float dataProcess(unsigned char input[8], int position, double factor, int offset, int dataLenght)
-{
-  unsigned long int aux1;
-  unsigned long int aux2;
-  unsigned long int aux3;
-  unsigned long int aux4;
-  double output = 0;
-
-  if (dataLenght == 1)
-  {
-    output = (input[position] * factor) + offset;
-    return output;
-  }
-  else if (dataLenght == 2)
-  {                             //Concatenate and Sort byte input[0] = 1F        input[1]= 3C
-    aux1 = input[position];     //aux1 = 1F
-    aux2 = input[position + 1]; //aux2 = 3C
-    aux2 = aux2 << 8;           //aux2 = 3C00
-
-    aux1 = aux2 | aux1; //aux1 = 3C1F
-
-    output = (aux1 * factor) + offset;
-    return output;
-  }
-  else if (dataLenght == 3)
-  {                             //Concatenate and Sort byte input[0] = 1F        input[1]= 3C       input[2] = 4F
-    aux1 = input[position];     //aux1 = 1F
-    aux2 = input[position + 1]; //aux2 = 3C
-    aux3 = input[position + 2]; //aux3 = 4F
-
-    aux3 = aux3 << 16; // aux3 = 4F 00 00
-    aux2 = aux2 << 8;  //  aux2 = 00 3C 00
-
-    aux1 = aux3 | aux2 | aux1; //aux1 = 4F3C1F
-
-    output = (aux1 * factor) + offset;
-    return output;
-  }
-  else if (dataLenght == 4)
-  {
-    // EXAMPLE INFORMMATION 1E 48 64 75
-    aux1 = input[position];     //1E
-    aux2 = input[position + 1]; //48
-    aux3 = input[position + 2]; //64
-    aux4 = input[position + 3]; //75
-
-    //32 BITS DE INFORMAÇÃO
-    //Concatenate and Sort byte ## input[0] = 1E  ## input[1]= 48  ## input[2] = 64 ## input[3] = 75##
-    aux4 = aux4 << 24; //aux4 = 41 00 00 00
-    aux3 = aux3 << 16; //aux3 = 00 3F 00 00
-    aux2 = aux2 << 8;  //aux2 = 00 00 3C 00
-
-    aux1 = aux4 | aux3 | aux2 | aux1; // aux1 = 41 3F 3C 1F
-    output = (aux1 * factor) + offset;
-    return output;
-  }
-  return -1;
-}
-
 void salva_trama()
 {
   sprintf(trama, "%d,%d,%f,%f,%d,%d,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f\r\n", Data, Hora, Lat, Longi, velocidade_nos, vSpin, vRPM, vTorque, vNivelTanque, vConsumo);
-  //appendFile(SPIFFS, "/GPSLOG.txt", trama);
   Serial.println(trama);
 
   root = SD.open(NomeArquivo, FILE_WRITE);
-  /* if open succesfully -> root != NULL 
-        then write string "Hello world!" to \
-    */
-
   if (root)
   {
     root.println(trama);
@@ -524,25 +410,24 @@ void salva_trama()
   }
 }
 
-/*void monta_trama()
+void monta_trama(char quemChama[100], char pacoteTrama[300]) //função que chama a trama, pacote da msg
 {
-  Serial.println("Monta pacote");
   tamPacote = 0;
-  tamPacote = strlen(pacote);
-
-  int i = 0;
-  while (DataRec[i] != ',')
-  {
-    ComandoRec[i] = DataRec[i];
-    i++;
+  tamPacote = strlen(pacoteTrama);
+  if(strcmp (quemChama, "colisao") == 0){
+    Serial.println("Entrou na chamada ");
+    //zig
+    //bt 
+    //GTFEW
   }
+/*
   if (ComandoRec[0] == 'S' || ComandoRec[0] == 'I')
   { //protege para não subir lixo
     sprintf(pacote, "%d,%s,%s,%s,%s,%s", FROTA, Data, Hora, Lat, Longi, DataRec);
     Serial.println(pacote);
     enviaGPRS();
-  }
-}*/
+  }*/
+}
 
 void inicia_WiFi()
 {
@@ -563,6 +448,59 @@ void limpa_variavel()
   vConsumo = 0;
 }
 
+void colisao (float frotaColisao, double latColisao, double longiColisao, int spinColisao,int veloColisao)
+{
+//quem pode chamar a funcao de colisao é outra embarcacao ou um ponto fixo.
+
+  int i=0, raiocolisao =5; //raio para colisão 5 m
+  float toleranciaImprecisao = 1.2,resultRaio =0;; //20% de tolerancia para o erro do gps
+  double resultLat =0, resultLong = 0;
+  Lat = -21.222722;
+  Longi = -50.419890;
+  vSpin = 115;
+  //velocidade_nos = velocidade_nos*0,514444; // converte para m/s
+  velocidade_nos = 13.88;
+  int tempoProjecao [4]= {3,5,7,10}; //s
+  int PontColisao [4] = {0,0,0,0};
+
+  double LatProjetada[4] = {0,0,0,0};
+  double LongProjetada[4] = {0,0,0,0};
+  double LatProjetadaColisao[4] = {0,0,0,0};
+  double LongProjetadaColisao[4] = {0,0,0,0};
+
+for(i=0;i<4;i++){ //projeta meus pontos futuros
+    LatProjetada[i] = Lat+((velocidade_nos*tempoProjecao[i]*(cos(vSpin)))/100000);
+    LongProjetada[i] = Longi+((velocidade_nos*tempoProjecao[i]*(sin(vSpin)))/100000);
+  }
+
+
+for(i=0;i<4;i++){ // projeta de quem chama a funcao
+    LatProjetadaColisao[i] = latColisao+(((veloColisao/3.6)*tempoProjecao[i]*(cos(spinColisao)))/100000);
+    LongProjetadaColisao[i] = longiColisao+(((veloColisao/3.6)*tempoProjecao[i]*(sin(spinColisao)))/100000);
+  }
+
+  for(i=0;i<4;i++){ // verifica se vai colidir algum ponto
+    resultLat = (LatProjetada[i]-LatProjetadaColisao[i])*100000;
+    resultLong = (LongProjetada[i]-LongProjetadaColisao[i])*100000;
+    resultRaio = (sqrt(pow(resultLat,2) + pow(resultLong,2)))*toleranciaImprecisao;
+    
+    if(resultRaio < raiocolisao){
+      PontColisao[i] = 1;
+      monta_trama("colisao","texto da merda");
+      //manda por bt para tela a colisão
+
+    }
+    else{
+      PontColisao[i]=0;
+    }
+      if (DEBUG == 1){
+        Serial.printf("colisão [%d] - lat: %f , Long: %f, chance colidir: %d\n",i,LatProjetadaColisao[i],LongProjetadaColisao[i],PontColisao[i]);
+      }
+      
+  }
+  
+}
+
 //************************************** SETUP *********************************************
 //******************************************************************************************
 void setup()
@@ -579,9 +517,9 @@ void setup()
 
   Serial.println("iniciando...");
 
-  inicia_WiFi();
-  resetSIM808(); // liga sim808 sem precisar do botão
-  beginSim808(); // testa placa on
+  //inicia_WiFi();
+  //resetSIM808(); // liga sim808 sem precisar do botão
+  //beginSim808(); // testa placa on
 
   xTaskCreatePinnedToCore( //GPS
       GPS,                 // função que implementa a tarefa /
@@ -594,16 +532,16 @@ void setup()
 
   delay(1000);
 
-  connectGPRS(); // connecta TCP
+  //connectGPRS(); // connecta TCP
 
-  incia_CAN();
+  //incia_CAN();
 
   Serial.println("Aguarde");
   delay(1000);
 
-  hora_no_arquivo();
+  //hora_no_arquivo();
 
-  inicia_SD();
+  //inicia_SD();
 }
 
 //************************************** LOOP **********************************************
@@ -611,8 +549,12 @@ void setup()
 
 void loop()
 {
+  /*
   interrup_CAN();
   salva_trama();
   delay(1000); //ciclo 10s
   limpa_variavel();
+  */
+  colisao(211,-21.222722,-50.419890,115,50);//frota do outro, lat, long,spin, velo km/h
+  delay(1000);
 }
