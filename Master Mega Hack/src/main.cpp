@@ -6,7 +6,8 @@
 #include "esp_task_wdt.h"
 #include <SoftwareSerial.h>
 #include <WiFi.h>
-#include <CAN.h>
+#include "mcp_can.h"
+#include "mcp_can_dfs.h"
 #include <SPI.h>
 #include <math.h>
 
@@ -31,7 +32,15 @@ void limpa_variavel();
 //************************************** VARIAVEIS & DEFINES *******************************
 //******************************************************************************************
 // ----------:> identificação do bordo
+<<<<<<< HEAD
 float vFrota = 101; //MINHA FROTA
+=======
+float vFrota = 101;              //MINHA FROTA
+char vEstado[1];
+String vOperacao;
+int vCodigoOperacao=0;
+boolean vTelaConnected =0;
+>>>>>>> 3c94c13193ed1c0c6ce1daa1a8e38347d4d5eca1
 
 // ----------:> Bluetooth
 #if !defined(CONFIG_BT_ENABLED) || !defined(CONFIG_BLUEDROID_ENABLED)
@@ -39,6 +48,7 @@ float vFrota = 101; //MINHA FROTA
 #endif
 BluetoothSerial BT;
 char DataBtRecived[350];
+char DataBtSend[350];
 
 // ----------:> Serial
 #define BAUD_RATE_SERIAL 500000
@@ -57,7 +67,7 @@ unsigned int velocidade = 0;     // velocidade em km/h
 unsigned int velocidade_nos = 0; // velocidade em nós
 double Lat = 0;
 double Longi = 0;
-double vSpin = 0;
+int vSpin = 0;
 #define velocidade_minima 1.5 //velocidade minima km/h
 
 // ----------:> ARQUIVO
@@ -101,6 +111,7 @@ float vConsumo = -1.0;
 
 //************************************** FUNÇÕES *******************************************
 //******************************************************************************************
+<<<<<<< HEAD
 float dataProcess(uint8_t entrada_data[8], int Byte_inicial, double fator, int offset, int Tamanho_Byte)
 {
   unsigned long int aux1;
@@ -262,7 +273,44 @@ void Leitura_BT()
     }
     DataBtRecived[i] = 0x00;
     Serial.println(DataBtRecived);
+=======
+
+void TaskBT(void *pvParameters)
+{
+  int i=0;
+  while (true)
+  {
+    if (BT.available() > 0) {
+      while(BT.available() > 0){
+          char c = BT.read();
+          DataBtRecived[i++] = c;
+
+          if (DataBtSend != 0){
+             BT.println(DataBtSend);
+          }
+      }
+      Serial.print(DataBtRecived);
+      Serial.println(DataBtSend);
+      //Serial.println(strlen(DataBtRecived));
+      //Serial.println(strcmp (DataBtRecived, "CONNECT\r\n"));
+    }
+    
+    if (strcmp (DataBtRecived, "CONNECT\r\n") == 0){
+        vTelaConnected =1;
+    }
+
+    DataBtRecived[i]=0x00;
+    DataBtSend[i]=0x00;
+    i=0;
+>>>>>>> 3c94c13193ed1c0c6ce1daa1a8e38347d4d5eca1
   }
+  vTaskDelay(10);
+  esp_task_wdt_reset();
+}
+
+void Start_BT(){
+  BT.begin("MeuBordo-"+(String)vFrota);
+  Serial.println("Bluetooth inicializado");
 }
 
 int8_t sendATcommand(char *ATcommand, char *expected_answer1, unsigned int timeout)
@@ -548,14 +596,15 @@ void monta_trama(char quemChama[100], char pacoteTrama[300]) //função que cham
 {
   /*------------------cabeçalhos 
   //bluetooth :  comando,id,frota, 
-  //zig
-  //GTFEW  
+  //zig       :  
+  //GTFEW     :
   //-------------------------*/
   char DataSend[350];
   int id = 0;
   String comando;
   tamPacote = 0;
   tamPacote = strlen(pacoteTrama);
+<<<<<<< HEAD
   if (strcmp(quemChama, "colisao") == 0)
   { //id 2
     comando = "e32bt";
@@ -575,18 +624,55 @@ void monta_trama(char quemChama[100], char pacoteTrama[300]) //função que cham
     Serial.println(pacote);
     enviaGPRS();
   }*/
+=======
+
+  if(strcmp (quemChama, "tela_connectada") == 0){   //id 1
+      comando = "e32bt";
+      id=1;
+      //bt
+      sprintf(DataSend,"%s,%d,%f,%s",comando,id,vFrota,pacoteTrama);
+  }
+
+  if(strcmp (quemChama, "colisao") == 0){   //id 2
+      comando = "e32bt";
+      id=2;
+      //bt
+      sprintf(DataSend,"%s,%d,%f,%s",comando,id,vFrota,pacoteTrama);
+      if (DEBUG == 1){
+          Serial.println(DataSend);
+      }
+    //GTFEW
+  }
+>>>>>>> 3c94c13193ed1c0c6ce1daa1a8e38347d4d5eca1
 }
-/*
-void inicia_WiFi()
-{
-  WiFi.mode(WIFI_AP);                     // configura como master
-  WiFi.softAP("GalaInZe", "paodequeijo"); // rede, senha
-  Server.begin();                         // inicia servidor wifi
-  IPAddress IP = WiFi.softAPIP();         //request ip server
-  Serial.print("Wifi configurado ...");
-  Serial.print("IP address: ");
-  Serial.println(IP);
-}*/
+
+void tela_connectada(void *pvParameters){
+  //estado, operacao, data, hora,time
+  vEstado[1] = 'E';
+  //vOperacao[20];
+  vCodigoOperacao= 999;
+
+  int redundancia =0;
+  char texto [200];
+  while (true){
+
+      sprintf(texto,"%c,%s,%d,%d,%d,%f,%f,%d,%f,%f,%f,%f",vEstado,vOperacao,vCodigoOperacao,Data,Hora,velocidade_nos,vSpin,Lat,Longi,vNivelTanque,vConsumo);
+
+      if (vTelaConnected == 1){
+        Serial.println("Entrou com connect do bt");
+          redundancia =0;
+          monta_trama("tela_connectada",texto);
+      }
+
+      if(redundancia < 10){
+          redundancia++;
+          monta_trama("tela_connectada",texto);
+          vTelaConnected =0;
+      }
+  }
+  vTaskDelay(10);
+  esp_task_wdt_reset();
+}
 
 void limpa_variavel()
 {
@@ -600,6 +686,7 @@ void colisao(float frotaColisao, double latColisao, double longiColisao, int spi
 {
   //quem pode chamar a funcao de colisao é outra embarcacao ou um ponto fixo.
 
+<<<<<<< HEAD
   int i = 0, raiocolisao = 5; //raio para colisão 5 m
   float toleranciaImprecisao = 1.2, resultRaio = 0;
   ; //20% de tolerancia para o erro do gps
@@ -607,6 +694,15 @@ void colisao(float frotaColisao, double latColisao, double longiColisao, int spi
   Lat = -21.222722;
   Longi = -50.419890;
   vSpin = 115;
+=======
+  int i=0, raiocolisao =5; //raio para colisão 5 m
+  float toleranciaImprecisao = 1.2,resultRaio =0; //20% de tolerancia para o erro do gps
+  double resultLat =0, resultLong = 0;
+  //valores para teste
+  //Lat = -21.222722;
+  //Longi = -50.419890;
+  //vSpin = 115;
+>>>>>>> 3c94c13193ed1c0c6ce1daa1a8e38347d4d5eca1
   //velocidade_nos = velocidade_nos*0,514444; // converte para m/s
   velocidade_nos = 13.88;
   int tempoProjecao[4] = {3, 5, 7, 10}; //s
@@ -623,6 +719,7 @@ void colisao(float frotaColisao, double latColisao, double longiColisao, int spi
     LongProjetada[i] = Longi + ((velocidade_nos * tempoProjecao[i] * (sin(vSpin))) / 100000);
   }
 
+<<<<<<< HEAD
   for (i = 0; i < 4; i++)
   { // projeta de quem chama a funcao
     LatProjetadaColisao[i] = latColisao + (((veloColisao / 3.6) * tempoProjecao[i] * (cos(spinColisao))) / 100000);
@@ -637,6 +734,20 @@ void colisao(float frotaColisao, double latColisao, double longiColisao, int spi
 
     if (resultRaio < raiocolisao)
     {
+=======
+//if(veloColisao > 1.5){
+  for(i=0;i<4;i++){ // projeta de quem chama a funcao
+      LatProjetadaColisao[i] = latColisao+(((veloColisao/3.6)*tempoProjecao[i]*(cos(spinColisao)))/100000);
+      LongProjetadaColisao[i] = longiColisao+(((veloColisao/3.6)*tempoProjecao[i]*(sin(spinColisao)))/100000);
+    }
+//}
+  for(i=0;i<4;i++){ // verifica se vai colidir algum ponto
+    resultLat = (LatProjetada[i]-LatProjetadaColisao[i])*100000;
+    resultLong = (LongProjetada[i]-LongProjetadaColisao[i])*100000;
+    resultRaio = (sqrt(pow(resultLat,2) + pow(resultLong,2)))*toleranciaImprecisao;
+    
+    if(resultRaio < raiocolisao){
+>>>>>>> 3c94c13193ed1c0c6ce1daa1a8e38347d4d5eca1
       PontColisao[i] = 1;
       char texto[200];
       sprintf(texto, "%f,%f,%f", frotaColisao, LatProjetada[i], LongProjetada[i]);
@@ -651,7 +762,78 @@ void colisao(float frotaColisao, double latColisao, double longiColisao, int spi
     {
       Serial.printf("colisão [%d] - lat: %f , Long: %f, chance colidir: %d\n", i, LatProjetadaColisao[i], LongProjetadaColisao[i], PontColisao[i]);
     }
+<<<<<<< HEAD
   }
+=======
+      if (DEBUG == 1){
+        Serial.printf("colisão [%d] - lat: %f , Long: %f, chance colidir: %d\n",i,LatProjetadaColisao[i],LongProjetadaColisao[i],PontColisao[i]);
+      }
+  }
+}
+
+void colisao_manobra(float frotaManobra, double latManobra, double longManobra, int spinManobra){
+  
+}
+
+void maquina_estado()
+{
+  //torque, velocidade, colisao, rpm, ponto fixo
+  //----------------------------estados
+  //  Efeivo -- Puxando ou empurrando
+  //  Parada -- cod de parada ou ponto fixo
+  //  Deslocamento
+  
+  int inicioManobra=0;
+  int motor_ligado =200;
+  int quantidadePF = 0;
+  int i=0;
+  double resultLat =0, resultLong = 0;
+  float toleranciaImprecisao = 1.2,resultRaio =0;
+  int raiocolisao =5;
+  //rotina corre lista de ponto fixo e retorna a quantidade
+  //para teste valor fixo
+  quantidadePF = 9; 
+  double latPontoFixo[quantidadePF];
+  double longPontoFixo[quantidadePF];
+
+  //teste parada
+  latPontoFixo[0]=-21.222722;
+  longPontoFixo[0] -50.419890;
+  
+  
+  if(velocidade_nos > velocidade_minima && vRPM > motor_ligado){   //Deslocamento motor ligado e velocidade maior que 1.5
+    vEstado[0] = 'D';
+  }
+  if(velocidade_nos < velocidade_minima){ // parada com validação de ponto fixo
+    vEstado[0] = 'F';
+    //valida ponto fixo
+    for(i=0;i<=quantidadePF;i++){
+        resultLat = (Lat-latPontoFixo[i])*100000;
+        resultLong = (Longi-longPontoFixo[i])*100000;
+        resultRaio = (sqrt(pow(resultLat,2) + pow(resultLong,2)))*toleranciaImprecisao;
+    
+        if(resultRaio < raiocolisao){
+            vOperacao = "Nome Parada";// esse nome vem da lista de parada
+        }
+        else{
+          //solicita parada > manda comando por bt para tela
+        }
+      }
+  } // fim do estado parada
+}
+
+void alarme_operacionais(){
+}
+
+void calcula_consumo()
+{
+ float reg_coef0 = 24.905251702;
+ float reg_coef1 = 11.04978200;
+ float reg_intercept_= 2.9715984714;
+
+ vConsumo = reg_coef0*(velocidade/36.48)+(reg_coef1*pow(vRPM,2)/pow(2280,2))+reg_intercept_;
+
+>>>>>>> 3c94c13193ed1c0c6ce1daa1a8e38347d4d5eca1
 }
 
 //************************************** SETUP *********************************************
@@ -670,10 +852,14 @@ void setup()
   sim808.begin(BAUD_RATE_SERIAL);
   pinMode(PINreset, OUTPUT); // reset a placa processo padrão quando inicia
   digitalWrite(PINreset, LOW);
+<<<<<<< HEAD
 */
   Serial.println("iniciando...");
+=======
 
-  //inicia_WiFi();
+  Serial.println("Iniciando Computador de bordo...");
+>>>>>>> 3c94c13193ed1c0c6ce1daa1a8e38347d4d5eca1
+
   //resetSIM808(); // liga sim808 sem precisar do botão
   //beginSim808(); // testa placa on
   /*
@@ -686,6 +872,7 @@ void setup()
       NULL,                // referência para a tarefa (pode ser NULL) /
       taskCoreZero);       //nucleo esp 32 -(0 ou 1)
 
+<<<<<<< HEAD
   delay(1000);
 */
   xTaskCreatePinnedToCore( //can
@@ -698,14 +885,36 @@ void setup()
       taskCoreOne);        //nucleo esp 32 -(0 ou 1)
 
   //connectGPRS(); // connecta TCP
+=======
+  xTaskCreatePinnedToCore( //Bluetooth
+      TaskBT,              // função que implementa a tarefa /
+      "TaskBT",            // nome da tarefa /
+      10000,               // número de palavras a serem alocadas para uso com a pilha da tarefa /
+      NULL,                // parâmetro de entrada para a tarefa (pode ser NULL) /
+      2,                   // prioridade da tarefa (0 a N). maior mais alto /
+      NULL,                // referência para a tarefa (pode ser NULL) /
+      taskCoreOne);        //nucleo esp 32 -(0 ou 1)
+>>>>>>> 3c94c13193ed1c0c6ce1daa1a8e38347d4d5eca1
 
-  //incia_CAN();
+  xTaskCreatePinnedToCore( //tela
+      tela_connectada ,    // função que implementa a tarefa /
+      "tela_connectada",   // nome da tarefa /
+      10000,               // número de palavras a serem alocadas para uso com a pilha da tarefa /
+      NULL,                // parâmetro de entrada para a tarefa (pode ser NULL) /
+      1,                   // prioridade da tarefa (0 a N). maior mais alto /
+      NULL,                // referência para a tarefa (pode ser NULL) /
+      taskCoreOne);        //nucleo esp 32 -(0 ou 1)
+     
 
+<<<<<<< HEAD
   Serial.println("Aguarde");
   delay(3000);
 
+=======
+  delay(1000);
+  //connectGPRS(); // connecta TCP
+>>>>>>> 3c94c13193ed1c0c6ce1daa1a8e38347d4d5eca1
   //hora_no_arquivo();
-
   //inicia_SD();
 }
 
@@ -714,9 +923,15 @@ void setup()
 
 void loop()
 {
+<<<<<<< HEAD
   /*
   colisao(211,-21.222722,-50.419890,115,50);//frota do outro, lat, long,spin, velo km/h
   Leitura_BT();*/
 
   //  Leitura_CAN();
+=======
+  //teste colisão
+  //colisao(211,-21.222722,-50.419890,115,50);//frota do outro, lat, long,spin, velo km/h
+  delay(1000);
+>>>>>>> 3c94c13193ed1c0c6ce1daa1a8e38347d4d5eca1
 }
