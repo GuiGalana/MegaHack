@@ -33,7 +33,7 @@ void colisao (float frotaColisao,double latColisao, double longiColisao, int spi
 // ----------:> identificação do bordo
 float vFrota = 101;              //MINHA FROTA
 char vEstado[1];
-char vOperacao[20];
+String vOperacao;
 int vCodigoOperacao=0;
 boolean vTelaConnected =0;
 
@@ -496,12 +496,12 @@ void colisao (float frotaColisao, double latColisao, double longiColisao, int sp
 //quem pode chamar a funcao de colisao é outra embarcacao ou um ponto fixo.
 
   int i=0, raiocolisao =5; //raio para colisão 5 m
-  float toleranciaImprecisao = 1.2,resultRaio =0;; //20% de tolerancia para o erro do gps
+  float toleranciaImprecisao = 1.2,resultRaio =0; //20% de tolerancia para o erro do gps
   double resultLat =0, resultLong = 0;
   //valores para teste
-  Lat = -21.222722;
-  Longi = -50.419890;
-  vSpin = 115;
+  //Lat = -21.222722;
+  //Longi = -50.419890;
+  //vSpin = 115;
   //velocidade_nos = velocidade_nos*0,514444; // converte para m/s
   velocidade_nos = 13.88;
   int tempoProjecao [4]= {3,5,7,10}; //s
@@ -517,12 +517,12 @@ for(i=0;i<4;i++){ //projeta meus pontos futuros
     LongProjetada[i] = Longi+((velocidade_nos*tempoProjecao[i]*(sin(vSpin)))/100000);
   }
 
-
-for(i=0;i<4;i++){ // projeta de quem chama a funcao
-    LatProjetadaColisao[i] = latColisao+(((veloColisao/3.6)*tempoProjecao[i]*(cos(spinColisao)))/100000);
-    LongProjetadaColisao[i] = longiColisao+(((veloColisao/3.6)*tempoProjecao[i]*(sin(spinColisao)))/100000);
-  }
-
+//if(veloColisao > 1.5){
+  for(i=0;i<4;i++){ // projeta de quem chama a funcao
+      LatProjetadaColisao[i] = latColisao+(((veloColisao/3.6)*tempoProjecao[i]*(cos(spinColisao)))/100000);
+      LongProjetadaColisao[i] = longiColisao+(((veloColisao/3.6)*tempoProjecao[i]*(sin(spinColisao)))/100000);
+    }
+//}
   for(i=0;i<4;i++){ // verifica se vai colidir algum ponto
     resultLat = (LatProjetada[i]-LatProjetadaColisao[i])*100000;
     resultLong = (LongProjetada[i]-LongProjetadaColisao[i])*100000;
@@ -544,6 +544,10 @@ for(i=0;i<4;i++){ // projeta de quem chama a funcao
   }
 }
 
+void colisao_manobra(float frotaManobra, double latManobra, double longManobra, int spinManobra){
+  
+}
+
 void maquina_estado()
 {
   //torque, velocidade, colisao, rpm, ponto fixo
@@ -554,14 +558,41 @@ void maquina_estado()
   
   int inicioManobra=0;
   int motor_ligado =200;
+  int quantidadePF = 0;
+  int i=0;
+  double resultLat =0, resultLong = 0;
+  float toleranciaImprecisao = 1.2,resultRaio =0;
+  int raiocolisao =5;
+  //rotina corre lista de ponto fixo e retorna a quantidade
+  //para teste valor fixo
+  quantidadePF = 9; 
+  double latPontoFixo[quantidadePF];
+  double longPontoFixo[quantidadePF];
+
+  //teste parada
+  latPontoFixo[0]=-21.222722;
+  longPontoFixo[0] -50.419890;
   
-  if(velocidade > velocidade_minima && vRPM > motor_ligado){   //Deslocamento motor ligado e velocidade maior que 1.5
+  
+  if(velocidade_nos > velocidade_minima && vRPM > motor_ligado){   //Deslocamento motor ligado e velocidade maior que 1.5
     vEstado[0] = 'D';
   }
-
-  
-  
-
+  if(velocidade_nos < velocidade_minima){ // parada com validação de ponto fixo
+    vEstado[0] = 'F';
+    //valida ponto fixo
+    for(i=0;i<=quantidadePF;i++){
+        resultLat = (Lat-latPontoFixo[i])*100000;
+        resultLong = (Longi-longPontoFixo[i])*100000;
+        resultRaio = (sqrt(pow(resultLat,2) + pow(resultLong,2)))*toleranciaImprecisao;
+    
+        if(resultRaio < raiocolisao){
+            vOperacao = "Nome Parada";// esse nome vem da lista de parada
+        }
+        else{
+          //solicita parada > manda comando por bt para tela
+        }
+      }
+  } // fim do estado parada
 }
 
 void alarme_operacionais(){
