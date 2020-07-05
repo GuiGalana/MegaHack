@@ -861,7 +861,7 @@ void setup()
       taskCoreOne);        //nucleo esp 32 -(0 ou 1)
 
 
-  delay(1000);
+  delay(1100);
   //inicia_SD();
 }
 
@@ -898,5 +898,6 @@ void loop()
   // hora_no_arquivo(); 
   //teste colisão
   colisao(211,-21.222722,-50.419890,115,50);//frota do outro, lat, long,spin, velo km/h
-  delay(10);
+  //não aumentar valor do delay
+  delay(10);//
 }
