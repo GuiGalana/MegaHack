@@ -410,6 +410,7 @@ void beginSim808()
   uint8_t answer = 0;
   // testa AT
   answer = sendATcommand("AT", "OK", 2000);
+
     while (answer == 0 && tentativa <3)
     {
       answer = sendATcommand("AT", "OK", 2000);
@@ -450,7 +451,6 @@ void monta_trama(char quemChama[100], char pacoteTrama[300]) //função que cham
   int id = 0;
   String comando;
   tamPacote = 0;
-  tamPacote = strlen(pacoteTrama);
 
   if (strcmp(quemChama, "tela_connectada") == 0)
   { //id 1
@@ -474,7 +474,23 @@ void monta_trama(char quemChama[100], char pacoteTrama[300]) //função que cham
       BT.println(DataSend);
     }
     //GTFEW
+    comando ="GTFEW";
+    id =1;
+    sprintf(DataSend, "%s,%d,%f,%s", comando, id, vFrota, pacoteTrama);
+    tamPacote = strlen(DataSend);
+    /*se(manda GPRS(dataSend) == 0){
+      salvacartão(dataSend);
+    }*/
   }
+   if (strcmp(quemChama, "monitoramento") == 0)
+    //GTFEW
+    comando ="GTFEW";
+    id =0;
+    sprintf(DataSend, "%s,%d,%f,%s", comando, id, vFrota, pacoteTrama);
+    tamPacote = strlen(DataSend);
+    /*se(manda GPRS(dataSend) == 0){
+      salvacartão(dataSend);
+    }*/
 }
 
 void tela_connectada()
