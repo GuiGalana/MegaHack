@@ -12,21 +12,26 @@
 
 //versão 2.1
 /*
-GPIO 04 - RX -    CAN
-GPIO 05 - TX -    CAN
-GPIO 32 - RX -    GPRS 
-GPIO 33 - TX -    GPRS
-GPIO 16 - RX -    ZIGB
-GPIO 17 - TX -    ZIGB
-GPIO 35 - TX -    GPS
-GPIO 34 - RX -    GPS
-GPIO    - MOSI -  SD 
-GPIP    - MISO -  SD 
-GPIP    - SCK  -  SD 
-GPIP    - CS   -  SD 
+GPIO 04 -   RX    -    CAN
+GPIO 05 -   TX    -    CAN
+GPIO 32 -   RX    -    GPRS 
+GPIO 33 -   TX    -    GPRS
+GPIO 16 -   RX    -    ZIGB
+GPIO 17 -   TX    -    ZIGB
+GPIO 35 -   TX    -    GPS
+GPIO 34 -   RX    -    GPS
+GPIO 14 -   MOSI  -    SD 
+GPIO 13 -   MISO  -    SD 
+GPIO 27 -   SCK   -    SD 
+GPIO 26 -    CS    -    SD 
+GPIO 3 -    TX    -    ESP SERIAL
+GPIO 1 -    RX    -    ESP SERIAL
 */
+char StringTeste[350] = "$GTFW55,52,COLIDASAO,FROTA,PLAY";
 //************************************** ASSINATURAS ***************************************
 //******************************************************************************************
+int GPRS(String dados_GPRS);
+void Escrita_SD(char *dados_SD);
 void resetESP();
 void resetSIM808();
 void beginSim808();
@@ -59,7 +64,7 @@ char DataBtRecived[350];
 char DataBtSend[350];
 
 // ----------:> Serial
-#define BAUD_RATE_SERIAL 9600
+#define BAUD_RATE_SERIAL 500000
 SoftwareSerial sim808(32, 33); //  RX,  TX modem sim808
 #define DEBUG 1                //print serial sim808
 
@@ -67,7 +72,7 @@ SoftwareSerial sim808(32, 33); //  RX,  TX modem sim808
 TinyGPSPlus gps;
 #define RXgps 34
 #define TXgps 35
-SoftwareSerial gps_serial(RXgps,TXgps);
+SoftwareSerial gps_serial(RXgps, TXgps);
 //HardwareSerial gps_serial(2);
 unsigned long int Data = 0;
 unsigned long int Hora = 0;
@@ -80,7 +85,7 @@ int vSpin = 0;
 
 // ----------:> ARQUIVO
 File root;
-char NomeArquivo[17];
+char NomeArquivo[17] = "Trama.txt";
 
 // -----------:> TasK
 static uint8_t taskCoreZero = 0; // nucleo
@@ -118,7 +123,7 @@ boolean LFE1_CAN = false;
 #define TimeInfo 2000 // 10 segundo
 unsigned long int LastTime = 0;
 boolean Pacote_CAN = false;
-
+int conta_CAN = 0;
 //************************************** FUNÇÕES *******************************************
 //******************************************************************************************
 
@@ -284,12 +289,23 @@ void inicia_SD()
 {
   Serial.println("Initializing SD card...");
   /* initialize SD library with Soft SPI pins, if using Hard SPI replace with this SD.begin() | SD.begin(26, 14, 13, 27)*/
-  if (!SD.begin())
+  if (!SD.begin(26, 14, 13, 27))
   {
     Serial.println("initialization failed!");
     return;
   }
   Serial.println("initialization done.");
+
+  root = SD.open("/");
+  if (root)
+  {
+    printDirectory(root, 0);
+    root.close();
+  }
+  else
+  {
+    Serial.println("Erro ao acessar ROOT");
+  }
 
   root = SD.open(NomeArquivo, FILE_WRITE);
   /* if open succesfully -> root != NULL 
@@ -406,10 +422,11 @@ void resetESP()
 
 void beginSim808()
 {
-  int tentativa =0;
+  int tentativa = 0;
   uint8_t answer = 0;
   // testa AT
   answer = sendATcommand("AT", "OK", 2000);
+<<<<<<< HEAD
 
     while (answer == 0 && tentativa <3)
     {
@@ -417,6 +434,14 @@ void beginSim808()
       //Serial.println("Teste AT ok");
       tentativa++;
     }
+=======
+  while (answer == 0 && tentativa < 3)
+  {
+    answer = sendATcommand("AT", "OK", 2000);
+    //Serial.println("Teste AT ok");
+    tentativa++;
+  }
+>>>>>>> 1517cad7be4f14c0a529eaba5bea759641ec8fee
   Serial.println("Modem GPRS iniciado");
 }
 
@@ -474,14 +499,23 @@ void monta_trama(char quemChama[100], char pacoteTrama[300]) //função que cham
       BT.println(DataSend);
     }
     //GTFEW
+<<<<<<< HEAD
     comando ="GTFEW";
     id =1;
     sprintf(DataSend, "%s,%d,%f,%s", comando, id, vFrota, pacoteTrama);
     tamPacote = strlen(DataSend);
+=======
+    comando = "GTFEW";
+    id = 1;
+    sprintf(DataSend, "%s,%d,%f,%s", comando, id, vFrota, pacoteTrama);
+    tamPacote = strlen(DataSend);
+    Escrita_SD(DataSend);
+>>>>>>> 1517cad7be4f14c0a529eaba5bea759641ec8fee
     /*se(manda GPRS(dataSend) == 0){
       salvacartão(dataSend);
     }*/
   }
+<<<<<<< HEAD
    if (strcmp(quemChama, "monitoramento") == 0)
     //GTFEW
     comando ="GTFEW";
@@ -491,6 +525,49 @@ void monta_trama(char quemChama[100], char pacoteTrama[300]) //função que cham
     /*se(manda GPRS(dataSend) == 0){
       salvacartão(dataSend);
     }*/
+=======
+  if (strcmp(quemChama, "monitoramento") == 0)
+    //GTFEW
+    comando = "GTFEW";
+  id = 0;
+  sprintf(DataSend, "%s,%d,%f,%s", comando, id, vFrota, pacoteTrama);
+  tamPacote = strlen(DataSend);
+  Escrita_SD(DataSend);
+  /*se(manda GPRS(dataSend) == 0){
+      salvacartão(dataSend);
+    }*/
+}
+
+int GPRS(String dados_GPRS)
+{
+  return 0;
+}
+
+void Escrita_SD(char *Data_proSD)
+{
+      int aux = strlen(Data_proSD);
+      char Dada_proSD[aux];
+      int j = 0;
+      for (j=0; j < (aux); j++)
+      {
+        Dada_proSD[j] = Data_proSD[j];
+      }
+
+      root = SD.open(NomeArquivo, FILE_WRITE);
+
+      if (root)
+      {
+        // Serial.print("Writing to test.txt...");
+        root.println(Dada_proSD);
+        root.close();
+        Serial.println("done.");
+      }
+      else
+      {
+        // if the file didn't open, print an error:
+        Serial.println("error opening test.txt");
+      }
+>>>>>>> 1517cad7be4f14c0a529eaba5bea759641ec8fee
 }
 
 void tela_connectada()
@@ -520,10 +597,10 @@ void colisao(float frotaColisao, double latColisao, double longiColisao, int spi
   float toleranciaImprecisao = 1.2, resultRaio = 0; //20% de tolerancia para o erro do gps
   double resultLat = 0, resultLong = 0;
   //valores para teste
-  //Lat = -21.222722;
-  //Longi = -50.419890;
-  //vSpin = 115;
-  //velocidade_nos = velocidade_nos*0,514444; // converte para m/s
+  Lat = -21.222722;
+  Longi = -50.419890;
+  vSpin = 115;
+  velocidade_nos = velocidade_nos*0,514444; // converte para m/s
   velocidade_nos = 13.88;
   int tempoProjecao[4] = {3, 5, 7, 10}; //s
   int PontColisao[4] = {0, 0, 0, 0};
@@ -633,11 +710,14 @@ void alarme_operacionais()
 
 void calcula_consumo()
 {
+  if(LFE1_CAN == false){
+  LFE1_CAN = false;
   float reg_coef0 = 24.905251702;
   float reg_coef1 = 11.04978200;
   float reg_intercept_ = 2.9715984714;
 
   vConsumo = reg_coef0 * (velocidade / 36.48) + (reg_coef1 * pow(vRPM, 2) / pow(2280, 2)) + reg_intercept_;
+  }
 }
 
 float dataProcess(uint8_t entrada_data[8], int Byte_inicial, double fator, int offset, int Tamanho_Byte)
@@ -715,7 +795,7 @@ void config_CAN()
 
 void Debug_CAN(long identificador, uint8_t dados[8])
 {
-  int i;
+  /*int i;
   Serial.print(String(identificador, HEX) + ": ");
   for (i = 0; i < 8; i++)
   {
@@ -724,7 +804,7 @@ void Debug_CAN(long identificador, uint8_t dados[8])
     {
       Serial.print(",");
     }
-  }
+  }*/
   Serial.printf("RPM,Torque,NivelTanque,Consumo: %.2f, %.2f, %.2f, %.2f;", vRPM, vTorque, vNivelTanque, vConsumo);
   Serial.println();
 }
@@ -734,9 +814,9 @@ void Converte_dados_CAN(long identificador, uint8_t dados[8])
   identificador = identificador & ID_Mask;
   long pgn = identificador & PGN_Mask;
   pgn = pgn >> 8;
-
   if (pgn == 0xF004)
   {
+    conta_CAN = 0;
     vRPM = dataProcess(dados, 3, 0.125, 0, 2);
     vTorque = dataProcess(dados, 2, 1, -125, 1);
   }
@@ -753,10 +833,7 @@ void Converte_dados_CAN(long identificador, uint8_t dados[8])
 
 void Leitura_CAN()
 {
-  if (CANSuccess)
-  {
-    if (CAN.parsePacket())
-    {
+      //Serial.println("Entro Pacote");
       Pacote_CAN = true;
       id = CAN.packetId();
       if (!CAN.packetRtr())
@@ -767,20 +844,21 @@ void Leitura_CAN()
           DataCAN[pos] = CAN.read();
           pos++;
         }
+        
       }
-      Converte_dados_CAN(id, DataCAN);
-      Debug_CAN(id, DataCAN);
-      Pacote_CAN = false;
-    }
-  }
+     // limpa_variavel();
+      Converte_dados_CAN(id, DataCAN); 
+      //id = 0x00000000;
 }
 
 //************************************** SETUP *********************************************
 //******************************************************************************************
+
 void setup()
 {
   Serial.begin(BAUD_RATE_SERIAL);
   Serial.setTimeout(100);
+  Serial.println("Serial configurada!");
   config_CAN();
   Start_BT();
 
@@ -790,10 +868,9 @@ void setup()
   sim808.begin(BAUD_RATE_SERIAL);
   beginSim808(); // testa placa on
 
+  inicia_SD();
 
-  Serial.println("Iniciando Computador de bordo...");
   
-
   xTaskCreatePinnedToCore( //GPS
       GPS,                 // função que implementa a tarefa /
       "TaskGPS",           // nome da tarefa /
@@ -812,7 +889,8 @@ void setup()
       NULL,                // referência para a tarefa (pode ser NULL) /
       taskCoreOne);        //nucleo esp 32 -(0 ou 1)
 
-  delay(1000);
+
+  delay(1100);
   //inicia_SD();
 }
 
@@ -821,19 +899,34 @@ void setup()
 
 void loop()
 {
-
-  Leitura_CAN();
-
-  if (millis() - LastTime >= TimeInfo)
-  {
-    LastTime = millis();
-    if (LFE1_CAN == false)
+    
+  if (CAN.parsePacket())
     {
-      calcula_consumo();
+      Leitura_CAN();
+    }else{
+      conta_CAN++;
     }
-  }
+    if(vRPM > 0){
+      velocidade = 50;  //simulação km/h
+      velocidade_nos = 27;
+      calcula_consumo();
+    }else{
+      velocidade = 0;  //simulação km/h
+      velocidade_nos = 0;
+      vConsumo = 0;
+    }
+    if(conta_CAN > 100){
+      limpa_variavel();
+    }
+    
+    Debug_CAN(id, DataCAN);
+    //if(!CAN.available()){ limpa_variavel();}
 
+
+
+  // hora_no_arquivo(); 
   //teste colisão
-  //colisao(211,-21.222722,-50.419890,115,50);//frota do outro, lat, long,spin, velo km/h
-  delay(1000);
+  colisao(211,-21.222722,-50.419890,115,50);//frota do outro, lat, long,spin, velo km/h
+  //não aumentar valor do delay
+  delay(10);//
 }
