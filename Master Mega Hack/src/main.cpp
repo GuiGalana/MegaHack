@@ -10,8 +10,21 @@
 #include <SPI.h>
 #include <math.h>
 
-//versão 1.0
-
+//versão 2.0
+/*
+GPIO 04 - RX -    CAN
+GPIO 05 - TX -    CAN
+GPIO 32 - RX -    GPRS 
+GPIO 33 - TX -    GPRS
+GPIO 16 - RX -    ZIGB
+GPIO 17 - TX -    ZIGB
+GPIO 35 - TX -    GPS
+GPIO 34 - RX -    GPS
+GPIO    - MOSI -  SD 
+GPIP    - MISO -  SD 
+GPIP    - SCK  -  SD 
+GPIP    - CS   -  SD 
+*/
 //************************************** ASSINATURAS ***************************************
 //******************************************************************************************
 void resetESP();
@@ -25,7 +38,7 @@ void monta_trama();
 float dataProcess(unsigned char input[8], int position, double factor, int offset, int dataLenght);
 void getData(unsigned long int id, unsigned char data);
 void sendInfo();
-void colisao (float frotaColisao,double latColisao, double longiColisao, int spinColisao,int veloColisao);
+void colisao(float frotaColisao, double latColisao, double longiColisao, int spinColisao, int veloColisao);
 void tela_connectada();
 
 //************************************** VARIAVEIS & DEFINES *******************************
@@ -47,15 +60,15 @@ char DataBtSend[350];
 
 // ----------:> Serial
 #define BAUD_RATE_SERIAL 9600
-#define baudrate 9600
 SoftwareSerial sim808(32, 33); //  RX,  TX modem sim808
 #define DEBUG 1                //print serial sim808
 
 // ----------:> GPS
 TinyGPSPlus gps;
-#define RXgps 16
-#define TXgps 17
-HardwareSerial gps_serial(2);
+#define RXgps 34
+#define TXgps 35
+SoftwareSerial gps_serial(RXgps,TXgps);
+//HardwareSerial gps_serial(2);
 unsigned long int Data = 0;
 unsigned long int Hora = 0;
 unsigned int velocidade = 0;     // velocidade em km/h
@@ -77,7 +90,6 @@ static uint8_t taskCoreOne = 1;  // nucleo
 int conectadoTCP = 0;
 char response[300];
 int tamPacote = 0;
-#define PINreset 35
 
 // ----------:> Wifi
 #define MAX_CLIENTS 20 //quantidade max de esp8266
@@ -102,13 +114,17 @@ float vRPM = -1.0;
 float vNivelTanque = -1.0;
 float vTorque = -1.0;
 float vConsumo = -1.0;
+boolean LFE1_CAN = false;
+#define TimeInfo 2000 // 10 segundo
+unsigned long int LastTime = 0;
+boolean Pacote_CAN = false;
 
 //************************************** FUNÇÕES *******************************************
 //******************************************************************************************
 
 void TaskBT(void *pvParameters)
 {
-  int i=0,count=0,qtdtramabt =20;
+  int i = 0, count = 0, qtdtramabt = 20;
   while (true)
   {
     if (BT.available() > 0)
@@ -125,23 +141,26 @@ void TaskBT(void *pvParameters)
       }
       Serial.print(DataBtRecived);
     }
-    
-    if (strcmp (DataBtRecived, "CONNECT\r\n") == 0){
-        vTelaConnected =1;
-        tela_connectada();
+
+    if (strcmp(DataBtRecived, "CONNECT\r\n") == 0)
+    {
+      vTelaConnected = 1;
+      tela_connectada();
     }
-    if (vTelaConnected==1 && count < qtdtramabt){
-        count++;
-        tela_connectada();
+    if (vTelaConnected == 1 && count < qtdtramabt)
+    {
+      count++;
+      tela_connectada();
     }
-    if (count == qtdtramabt){
-      count=0;
-      vTelaConnected =0;
+    if (count == qtdtramabt)
+    {
+      count = 0;
+      vTelaConnected = 0;
     }
 
-    DataBtRecived[i]=0x00;
-    DataBtSend[i]=0x00;
-    i=0;
+    DataBtRecived[i] = 0x00;
+    DataBtSend[i] = 0x00;
+    i = 0;
     vTaskDelay(1000);
     esp_task_wdt_reset();
   }
@@ -385,20 +404,13 @@ void resetESP()
   ESP.restart();
 }
 
-void resetSIM808()
-{
-  digitalWrite(PINreset, HIGH);
-  delay(3000);
-  digitalWrite(PINreset, LOW);
-  Serial.println("reset Sim808 ok");
-}
-
 void beginSim808()
 {
   int tentativa =0;
   uint8_t answer = 0;
   // testa AT
   answer = sendATcommand("AT", "OK", 2000);
+<<<<<<< HEAD
     while (answer == 0 && tentativa <3)
     {
       answer = sendATcommand("AT", "OK", 2000);
@@ -406,6 +418,14 @@ void beginSim808()
       tentativa++;
     }
   Serial.println("Modem GPRS iniciado");
+=======
+  while (answer == 0)
+  {
+    answer = sendATcommand("AT", "OK", 2000);
+    Serial.println("Teste AT ok");
+  }
+  Serial.println("GPRS Iniciado!");
+>>>>>>> 497d74a89581ecbe0ae0ceacd80afb97076c0ea8
 }
 
 /*
@@ -441,36 +461,40 @@ void monta_trama(char quemChama[100], char pacoteTrama[300]) //função que cham
   tamPacote = 0;
   tamPacote = strlen(pacoteTrama);
 
-  if(strcmp (quemChama, "tela_connectada") == 0){   //id 1
-      comando = "e32bt";
-      id=1;
-      //bt
-      sprintf(DataSend,"%s,%d,%f,%s",comando,id,vFrota,pacoteTrama);
-      BT.println(DataSend);
-      //GTFEW
+  if (strcmp(quemChama, "tela_connectada") == 0)
+  { //id 1
+    comando = "e32bt";
+    id = 1;
+    //bt
+    sprintf(DataSend, "%s,%d,%f,%s", comando, id, vFrota, pacoteTrama);
+    BT.println(DataSend);
+    //GTFEW
   }
 
-  if(strcmp (quemChama, "colisao") == 0){   //id 2
-      comando = "e32bt";
-      id=2;
-      //bt
-      sprintf(DataSend,"%s,%d,%f,%s",comando,id,vFrota,pacoteTrama);
-      if (DEBUG == 1){
-          Serial.println(DataSend);
-          BT.println(DataSend);
-      }
+  if (strcmp(quemChama, "colisao") == 0)
+  { //id 2
+    comando = "e32bt";
+    id = 2;
+    //bt
+    sprintf(DataSend, "%s,%d,%f,%s", comando, id, vFrota, pacoteTrama);
+    if (DEBUG == 1)
+    {
+      Serial.println(DataSend);
+      BT.println(DataSend);
+    }
     //GTFEW
   }
 }
 
-void tela_connectada(){
+void tela_connectada()
+{
   //estado, operacao, data, hora,time
   vEstado[0] = 'E';
   //vOperacao[20];
-  vCodigoOperacao= 999;
-  char texto [200];
-      sprintf(texto,"%c,%s,%d,%d,%d,%f,%f,%d,%f,%f,%f,%f",vEstado,vOperacao,vCodigoOperacao,Data,Hora,velocidade_nos,vSpin,Lat,Longi,vNivelTanque,vConsumo);
-      monta_trama("tela_connectada",texto);
+  vCodigoOperacao = 999;
+  char texto[200];
+  sprintf(texto, "%c,%s,%d,%d,%d,%f,%f,%d,%f,%f,%f,%f", vEstado, vOperacao, vCodigoOperacao, Data, Hora, velocidade_nos, vSpin, Lat, Longi, vNivelTanque, vConsumo);
+  monta_trama("tela_connectada", texto);
 }
 
 void limpa_variavel()
@@ -694,8 +718,7 @@ void Debug_CAN(long identificador, uint8_t dados[8])
       Serial.print(",");
     }
   }
-  Serial.print("-> vRPM: ");
-  Serial.print(vRPM);
+  Serial.printf("RPM,Torque,NivelTanque,Consumo: %.2f, %.2f, %.2f, %.2f;", vRPM, vTorque, vNivelTanque, vConsumo);
   Serial.println();
 }
 
@@ -714,15 +737,20 @@ void Converte_dados_CAN(long identificador, uint8_t dados[8])
   {
     vNivelTanque = dataProcess(dados, 1, 0.4, 0, 1);
   }
+  if (pgn == 0xFEF2)
+  {
+    vConsumo = dataProcess(dados, 0, 0.05, 0, 2);
+    LFE1_CAN = true;
+  }
 }
 
-void Leitura_CAN(void *pvParameters)
+void Leitura_CAN()
 {
-  while (CANSuccess)
+  if (CANSuccess)
   {
     if (CAN.parsePacket())
     {
-
+      Pacote_CAN = true;
       id = CAN.packetId();
       if (!CAN.packetRtr())
       {
@@ -735,9 +763,8 @@ void Leitura_CAN(void *pvParameters)
       }
       Converte_dados_CAN(id, DataCAN);
       Debug_CAN(id, DataCAN);
+      Pacote_CAN = false;
     }
-    vTaskDelay(10);
-    esp_task_wdt_reset();
   }
 }
 
@@ -750,15 +777,22 @@ void setup()
   config_CAN();
   Start_BT();
 
-  gps_serial.begin(9600, SERIAL_8N1, RXgps, TXgps);
+  gps_serial.begin(BAUD_RATE_SERIAL);
   gps_serial.setTimeout(250);
 
   sim808.begin(BAUD_RATE_SERIAL);
+<<<<<<< HEAD
   beginSim808(); // testa placa on
+=======
+>>>>>>> 497d74a89581ecbe0ae0ceacd80afb97076c0ea8
 
 
+<<<<<<< HEAD
   Serial.println("Iniciando Computador de bordo...");
   
+=======
+  //beginSim808(); // testa placa on
+>>>>>>> 497d74a89581ecbe0ae0ceacd80afb97076c0ea8
 
   xTaskCreatePinnedToCore( //GPS
       GPS,                 // função que implementa a tarefa /
@@ -777,7 +811,7 @@ void setup()
       2,                   // prioridade da tarefa (0 a N). maior mais alto /
       NULL,                // referência para a tarefa (pode ser NULL) /
       taskCoreOne);        //nucleo esp 32 -(0 ou 1)
-    
+
   delay(1000);
   //inicia_SD();
 }
@@ -787,7 +821,19 @@ void setup()
 
 void loop()
 {
+
+  Leitura_CAN();
+
+  if (millis() - LastTime >= TimeInfo)
+  {
+    LastTime = millis();
+    if (LFE1_CAN == false)
+    {
+      calcula_consumo();
+    }
+  }
+
   //teste colisão
   //colisao(211,-21.222722,-50.419890,115,50);//frota do outro, lat, long,spin, velo km/h
-  delay(1000);
+  //delay(1000);
 }
