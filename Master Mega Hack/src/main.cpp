@@ -10,7 +10,7 @@
 #include <SPI.h>
 #include <math.h>
 
-//versão 2.0
+//versão 2.1
 /*
 GPIO 04 - RX -    CAN
 GPIO 05 - TX -    CAN
@@ -816,5 +816,5 @@ void loop()
 
   //teste colisão
   //colisao(211,-21.222722,-50.419890,115,50);//frota do outro, lat, long,spin, velo km/h
-  //delay(1000);
+  delay(1000);
 }
