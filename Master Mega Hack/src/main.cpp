@@ -395,21 +395,17 @@ void resetSIM808()
 
 void beginSim808()
 {
+  int tentativa =0;
   uint8_t answer = 0;
   // testa AT
   answer = sendATcommand("AT", "OK", 2000);
-  if (answer == 0)
-  {
-    digitalWrite(PINreset, HIGH);
-    delay(3000);
-    digitalWrite(PINreset, LOW);
-    Serial.println("reset Sim808 ok");
-    while (answer == 0)
+    while (answer == 0 && tentativa <3)
     {
       answer = sendATcommand("AT", "OK", 2000);
-      Serial.println("Teste AT ok");
+      //Serial.println("Teste AT ok");
+      tentativa++;
     }
-  }
+  Serial.println("Modem GPRS iniciado");
 }
 
 /*
@@ -570,9 +566,10 @@ void maquina_estado()
   double longPontoFixo[quantidadePF];
 
   //teste parada
+  /*
   latPontoFixo[0] = -21.222722;
   longPontoFixo[0] - 50.419890;
-
+  */
   if (velocidade_nos > velocidade_minima && vRPM > motor_ligado)
   { //Deslocamento motor ligado e velocidade maior que 1.5
     vEstado[0] = 'D';
@@ -684,6 +681,7 @@ void config_CAN()
     CANSuccess = true;
   }
 }
+
 void Debug_CAN(long identificador, uint8_t dados[8])
 {
   int i;
@@ -756,13 +754,11 @@ void setup()
   gps_serial.setTimeout(250);
 
   sim808.begin(BAUD_RATE_SERIAL);
-  pinMode(PINreset, OUTPUT); // reset a placa processo padrão quando inicia
-  digitalWrite(PINreset, LOW);
+  beginSim808(); // testa placa on
+
 
   Serial.println("Iniciando Computador de bordo...");
-
-  //resetSIM808(); // liga sim808 sem precisar do botão
-  //beginSim808(); // testa placa on
+  
 
   xTaskCreatePinnedToCore( //GPS
       GPS,                 // função que implementa a tarefa /
@@ -783,8 +779,6 @@ void setup()
       taskCoreOne);        //nucleo esp 32 -(0 ou 1)
     
   delay(1000);
-  //connectGPRS(); // connecta TCP
-  //hora_no_arquivo();
   //inicia_SD();
 }
 
