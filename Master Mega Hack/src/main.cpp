@@ -410,7 +410,6 @@ void beginSim808()
   uint8_t answer = 0;
   // testa AT
   answer = sendATcommand("AT", "OK", 2000);
-<<<<<<< HEAD
     while (answer == 0 && tentativa <3)
     {
       answer = sendATcommand("AT", "OK", 2000);
@@ -418,14 +417,6 @@ void beginSim808()
       tentativa++;
     }
   Serial.println("Modem GPRS iniciado");
-=======
-  while (answer == 0)
-  {
-    answer = sendATcommand("AT", "OK", 2000);
-    Serial.println("Teste AT ok");
-  }
-  Serial.println("GPRS Iniciado!");
->>>>>>> 497d74a89581ecbe0ae0ceacd80afb97076c0ea8
 }
 
 /*
@@ -781,18 +772,11 @@ void setup()
   gps_serial.setTimeout(250);
 
   sim808.begin(BAUD_RATE_SERIAL);
-<<<<<<< HEAD
   beginSim808(); // testa placa on
-=======
->>>>>>> 497d74a89581ecbe0ae0ceacd80afb97076c0ea8
 
 
-<<<<<<< HEAD
   Serial.println("Iniciando Computador de bordo...");
   
-=======
-  //beginSim808(); // testa placa on
->>>>>>> 497d74a89581ecbe0ae0ceacd80afb97076c0ea8
 
   xTaskCreatePinnedToCore( //GPS
       GPS,                 // função que implementa a tarefa /
