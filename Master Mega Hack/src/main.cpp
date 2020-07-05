@@ -25,12 +25,8 @@ void monta_trama();
 float dataProcess(unsigned char input[8], int position, double factor, int offset, int dataLenght);
 void getData(unsigned long int id, unsigned char data);
 void sendInfo();
-<<<<<<< HEAD
 void colisao (float frotaColisao,double latColisao, double longiColisao, int spinColisao,int veloColisao);
 void tela_connectada();
-=======
-void colisao(float frotaColisao, double latColisao, double longiColisao, int spinColisao, int veloColisao);
->>>>>>> b5a60cbc7d1c44c1e10d6818e77709693791cd28
 
 //************************************** VARIAVEIS & DEFINES *******************************
 //******************************************************************************************
@@ -112,11 +108,7 @@ float vConsumo = -1.0;
 
 void TaskBT(void *pvParameters)
 {
-<<<<<<< HEAD
   int i=0,count=0,qtdtramabt =20;
-=======
-  int i = 0;
->>>>>>> b5a60cbc7d1c44c1e10d6818e77709693791cd28
   while (true)
   {
     if (BT.available() > 0)
@@ -132,9 +124,7 @@ void TaskBT(void *pvParameters)
         }
       }
       Serial.print(DataBtRecived);
-      Serial.println(DataBtSend);
     }
-<<<<<<< HEAD
     
     if (strcmp (DataBtRecived, "CONNECT\r\n") == 0){
         vTelaConnected =1;
@@ -155,21 +145,6 @@ void TaskBT(void *pvParameters)
     vTaskDelay(1000);
     esp_task_wdt_reset();
   }
-=======
-
-    if (strcmp(DataBtRecived, "CONNECT\r\n") == 0)
-    {
-      vTelaConnected = 1;
-    }
-
-    DataBtRecived[i] = 0x00;
-    DataBtSend[i] = 0x00;
-    i = 0;
-    vTaskDelay(10);
-    esp_task_wdt_reset();
-  }
-  
->>>>>>> b5a60cbc7d1c44c1e10d6818e77709693791cd28
 }
 
 void Start_BT()
@@ -470,13 +445,13 @@ void monta_trama(char quemChama[100], char pacoteTrama[300]) //função que cham
   tamPacote = 0;
   tamPacote = strlen(pacoteTrama);
 
-<<<<<<< HEAD
   if(strcmp (quemChama, "tela_connectada") == 0){   //id 1
       comando = "e32bt";
       id=1;
       //bt
       sprintf(DataSend,"%s,%d,%f,%s",comando,id,vFrota,pacoteTrama);
       BT.println(DataSend);
+      //GTFEW
   }
 
   if(strcmp (quemChama, "colisao") == 0){   //id 2
@@ -488,71 +463,18 @@ void monta_trama(char quemChama[100], char pacoteTrama[300]) //função que cham
           Serial.println(DataSend);
           BT.println(DataSend);
       }
-=======
-  if (strcmp(quemChama, "tela_connectada") == 0)
-  { //id 1
-    comando = "e32bt";
-    id = 1;
-    //bt
-    sprintf(DataSend, "%s,%d,%f,%s", comando, id, vFrota, pacoteTrama);
-  }
-
-  if (strcmp(quemChama, "colisao") == 0)
-  { //id 2
-    comando = "e32bt";
-    id = 2;
-    //bt
-    sprintf(DataSend, "%s,%d,%f,%s", comando, id, vFrota, pacoteTrama);
-    if (DEBUG == 1)
-    {
-      Serial.println(DataSend);
-    }
->>>>>>> b5a60cbc7d1c44c1e10d6818e77709693791cd28
     //GTFEW
   }
 }
 
-<<<<<<< HEAD
 void tela_connectada(){
-=======
-//void tela_connectada(void *pvParameters){
-void tela_connectada()
-{
->>>>>>> b5a60cbc7d1c44c1e10d6818e77709693791cd28
   //estado, operacao, data, hora,time
   vEstado[0] = 'E';
   //vOperacao[20];
-<<<<<<< HEAD
   vCodigoOperacao= 999;
   char texto [200];
       sprintf(texto,"%c,%s,%d,%d,%d,%f,%f,%d,%f,%f,%f,%f",vEstado,vOperacao,vCodigoOperacao,Data,Hora,velocidade_nos,vSpin,Lat,Longi,vNivelTanque,vConsumo);
       monta_trama("tela_connectada",texto);
-=======
-  vCodigoOperacao = 999;
-
-  int redundancia = 0;
-  char texto[200];
-  while (true)
-  {
-    sprintf(texto, "%c,%s,%d,%d,%d,%f,%f,%d,%f,%f,%f,%f", vEstado, vOperacao, vCodigoOperacao, Data, Hora, velocidade_nos, vSpin, Lat, Longi, vNivelTanque, vConsumo);
-
-    if (vTelaConnected == 1)
-    {
-      Serial.println("Entrou com connect do bt");
-      redundancia = 0;
-      monta_trama("tela_connectada", texto);
-    }
-
-    if (redundancia < 10)
-    {
-      redundancia++;
-      monta_trama("tela_connectada", texto);
-      vTelaConnected = 0;
-    }
-  }
-  //vTaskDelay(10);
-  //esp_task_wdt_reset();
->>>>>>> b5a60cbc7d1c44c1e10d6818e77709693791cd28
 }
 
 void limpa_variavel()
@@ -859,29 +781,7 @@ void setup()
       2,                   // prioridade da tarefa (0 a N). maior mais alto /
       NULL,                // referência para a tarefa (pode ser NULL) /
       taskCoreOne);        //nucleo esp 32 -(0 ou 1)
-<<<<<<< HEAD
     
-=======
-                           /*
-  xTaskCreatePinnedToCore( //tela
-      tela_connectada ,    // função que implementa a tarefa /
-      "tela_connectada",   // nome da tarefa /
-      10000,               // número de palavras a serem alocadas para uso com a pilha da tarefa /
-      NULL,                // parâmetro de entrada para a tarefa (pode ser NULL) /
-      1,                   // prioridade da tarefa (0 a N). maior mais alto /
-      NULL,                // referência para a tarefa (pode ser NULL) /
-      taskCoreOne);        //nucleo esp 32 -(0 ou 1)
-     */
-
-  xTaskCreatePinnedToCore( //Bluetooth
-      Leitura_CAN,              // função que implementa a tarefa /
-      "TaskCAN",            // nome da tarefa /
-      1000000,               // número de palavras a serem alocadas para uso com a pilha da tarefa /
-      NULL,                // parâmetro de entrada para a tarefa (pode ser NULL) /
-      0,                   // prioridade da tarefa (0 a N). maior mais alto /
-      NULL,                // referência para a tarefa (pode ser NULL) /
-      taskCoreOne);      
->>>>>>> b5a60cbc7d1c44c1e10d6818e77709693791cd28
   delay(1000);
   //connectGPRS(); // connecta TCP
   //hora_no_arquivo();
@@ -893,7 +793,6 @@ void setup()
 
 void loop()
 {
-  void tela_connectada();
   //teste colisão
   //colisao(211,-21.222722,-50.419890,115,50);//frota do outro, lat, long,spin, velo km/h
   delay(1000);
