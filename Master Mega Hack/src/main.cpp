@@ -10,6 +10,7 @@
 #include <SPI.h>
 #include <math.h>
 
+
 //versão 2.1
 /*
 GPIO 04 -   RX    -    CAN
@@ -27,7 +28,7 @@ GPIO 26 -    CS    -    SD
 GPIO 3 -    TX    -    ESP SERIAL
 GPIO 1 -    RX    -    ESP SERIAL
 */
-char StringTeste[350] = "$GTFW55,52,COLIDASAO,FROTA,PLAY";
+//char StringTeste[350] = "$GTFW55,52,COLIDASAO,FROTA,PLAY";
 //************************************** ASSINATURAS ***************************************
 //******************************************************************************************
 int GPRS(String dados_GPRS);
@@ -46,10 +47,27 @@ void sendInfo();
 void colisao(float frotaColisao, double latColisao, double longiColisao, int spinColisao, int veloColisao);
 void tela_connectada();
 
+///Funções ZB
+void conf();
+int recebe_conf(char* vFrota,char Equipamento);
+void send_monit(char* vFrota,char Equipamento,char* vEstado, float Vel, float Spin, double Latitude,double Longitude);
+void recebe_monit(String trama);
+String checksum (String vetor,int r);
+String getValue(String data, char separator, int index);
+int valida_cksum(String trama, int r);
+/////
+HardwareSerial MySerial(2);
+  //char Frota[15] = "210";
+  //char Equipamento= '0'; //0 rebocador,1 Navio, 2 estação
+  //char Estado[2] ="E";
+  float Vel = 2.55;
+  float Spin = 250;
+  double Latitude = 123456.123456;
+  double Longitude = 654321.654321;
 //************************************** VARIAVEIS & DEFINES *******************************
 //******************************************************************************************
 // ----------:> identificação do bordo
-float vFrota = 101; //MINHA FROTA
+char vFrota[15] = "101"; //MINHA FROTA
 char vEstado[1];
 String vOperacao;
 int vCodigoOperacao = 0;
@@ -173,7 +191,7 @@ void TaskBT(void *pvParameters)
 
 void Start_BT()
 {
-  BT.begin("MeuBordo-" + (String)vFrota);
+  BT.begin("MeuBordo-" + String(vFrota));
   Serial.println("Bluetooth inicializado");
 }
 
@@ -482,7 +500,7 @@ void monta_trama(char quemChama[100], char pacoteTrama[300]) //função que cham
     comando = "e32bt";
     id = 1;
     //bt
-    sprintf(DataSend, "%s,%d,%f,%s", comando, id, vFrota, pacoteTrama);
+    sprintf(DataSend, "%s,%d,%s,%s", comando, id, vFrota, pacoteTrama);
     BT.println(DataSend);
     //GTFEW
   }
@@ -492,7 +510,7 @@ void monta_trama(char quemChama[100], char pacoteTrama[300]) //função que cham
     comando = "e32bt";
     id = 2;
     //bt
-    sprintf(DataSend, "%s,%d,%f,%s", comando, id, vFrota, pacoteTrama);
+    sprintf(DataSend, "%s,%d,%s,%s", comando, id, vFrota, pacoteTrama);
     if (DEBUG == 1)
     {
       Serial.println(DataSend);
@@ -861,7 +879,7 @@ void setup()
   Serial.println("Serial configurada!");
   config_CAN();
   Start_BT();
-
+  MySerial.begin(9600, SERIAL_8N1, 16, 17);
   gps_serial.begin(BAUD_RATE_SERIAL);
   gps_serial.setTimeout(250);
 
@@ -892,6 +910,8 @@ void setup()
 
   delay(1100);
   //inicia_SD();
+  init();
+  
 }
 
 //************************************** LOOP **********************************************
@@ -899,7 +919,9 @@ void setup()
 
 void loop()
 {
-    
+    if(MySerial.available()){
+		recebe_monit(MySerial.readString());
+	}
   if (CAN.parsePacket())
     {
       Leitura_CAN();
@@ -926,7 +948,106 @@ void loop()
 
   // hora_no_arquivo(); 
   //teste colisão
-  colisao(211,-21.222722,-50.419890,115,50);//frota do outro, lat, long,spin, velo km/h
-  //não aumentar valor do delay
-  delay(10);//
+  //colisao(211,-21.222722,-50.419890,115,50);//frota do outro, lat, long,spin, velo km/h
+  delay(1000);
 }
+
+
+void init() {
+  //Fcunçoes para iniciar as comunicações!
+  MySerial.begin(9600, SERIAL_8N1, 16, 17);
+  MySerial.setTimeout(2500); 
+  conf();
+  MySerial.println("PRONTO");
+  MySerial.setTimeout(1000); //diminui o tempo aguardando para receber mensagem na serial
+}
+
+void recebe_monit(String trama){//se chegou algo na seria Zigbee chama essa função
+
+  if(valida_cksum(trama,1)){ 
+   //Serial.println("checksum correto");
+    String r_Frota = getValue(trama,',',1);
+    String r_Equipamento = getValue(trama,',',2);
+    String r_Estado = getValue(trama,',',3);
+    String r_Vel = getValue(trama,',',4);
+    String r_Spin = getValue(trama,',',5);
+    String r_Latitude = getValue(trama,',',6);
+    String r_Longitude = getValue(trama,',',7);
+  //monta trama
+  //calcula as distancias/chance de imopacto e comunica com o BT, chamar a função de calcular e enviar a partir daqui
+  // variaveis locais
+  return;
+}else Serial.println("checksum errado");
+return;
+}
+
+
+
+int valida_cksum(String trama,int r){ //valida se o checksum esta correto
+  int tam = trama.length();
+  String trama_comp = trama;
+  trama_comp.remove(tam-4,4); 
+  String ck = getValue(trama,',',8);
+  ck.remove(ck.length()-2,2);
+  String ck2 = checksum(trama_comp,0);
+  if(ck == ck2) return 1;
+  else return 0;
+
+}
+
+
+void send_monit(char* vFrota,char Equipamento,char* vEstado, float Vel, float Spin, double Latitude,double Longitude) { //monta a trama e envia ZB
+  char trama[200] = "";
+  sprintf(trama,"Q,%s,%c,%s,%.2f,%.2f,%.6lf,%.6lf,",vFrota,Equipamento,vEstado,Vel,Spin,Latitude,Longitude);
+  sprintf(trama,"%s%s",trama,checksum(trama,0));
+  MySerial.println(trama);
+  return;
+}
+
+
+
+String checksum (String vetor,int r){  ///calcula o checksum
+    char res[4] = "";
+    char ck[2] = "";
+    int DV = 0;
+    int TAM = vetor.length();
+    int i;
+    if(r == 1) TAM-=1;
+    for(i = 0; i < TAM; i++){
+      DV ^= vetor[i];
+    }
+    sprintf(res,"%x",DV);
+    if (strlen(res) == 1) sprintf(ck,"0%c",res[0]);
+    else if(strlen(res) == 2) sprintf(ck,"%c%c",res[0],res[1]);
+    else if (strlen(res) == 3) sprintf(ck,"0%c",res[2]);
+    else if (strlen(res) == 4) sprintf(ck,"%c%c",res[2],res[3]);
+    return ck;
+}
+
+
+void conf(){ //setas as configurações iniciais do Zigbee
+  String teste;
+  MySerial.write(0x2b);
+  MySerial.write(0x2b);
+  MySerial.write(0x2b);
+  teste = MySerial.readString();
+  Serial.println(teste);
+  MySerial.println("ATID100"); //seleciona rede
+  teste = MySerial.readString();
+  Serial.println(teste);
+  MySerial.println("ATNI  NOME_ZB"); //nome do ModuloZb
+  teste = MySerial.readString();
+  Serial.println(teste);
+  MySerial.println("ATWR"); //salva as informaççoes
+  teste = MySerial.readString();
+  Serial.println(teste);
+  MySerial.println("ATAC");
+  teste = MySerial.readString();
+  Serial.println(teste);  
+  MySerial.println("ATCN");
+  teste = MySerial.readString();
+  Serial.println(teste);   
+  return;
+  }
+
+
