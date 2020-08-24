@@ -31,6 +31,7 @@ GPIO 1 -    RX    -    ESP SERIAL
 //char StringTeste[350] = "$GTFW55,52,COLIDASAO,FROTA,PLAY";
 //************************************** ASSINATURAS ***************************************
 //******************************************************************************************
+
 int GPRS(String dados_GPRS);
 void Escrita_SD(char *dados_SD);
 void resetESP();
@@ -444,22 +445,12 @@ void beginSim808()
   uint8_t answer = 0;
   // testa AT
   answer = sendATcommand("AT", "OK", 2000);
-<<<<<<< HEAD
-
-    while (answer == 0 && tentativa <3)
-    {
-      answer = sendATcommand("AT", "OK", 2000);
-      //Serial.println("Teste AT ok");
-      tentativa++;
-    }
-=======
   while (answer == 0 && tentativa < 3)
   {
     answer = sendATcommand("AT", "OK", 2000);
     //Serial.println("Teste AT ok");
     tentativa++;
   }
->>>>>>> 1517cad7be4f14c0a529eaba5bea759641ec8fee
   Serial.println("Modem GPRS iniciado");
 }
 
@@ -517,33 +508,15 @@ void monta_trama(char quemChama[100], char pacoteTrama[300]) //função que cham
       BT.println(DataSend);
     }
     //GTFEW
-<<<<<<< HEAD
-    comando ="GTFEW";
-    id =1;
-    sprintf(DataSend, "%s,%d,%f,%s", comando, id, vFrota, pacoteTrama);
-    tamPacote = strlen(DataSend);
-=======
     comando = "GTFEW";
     id = 1;
     sprintf(DataSend, "%s,%d,%f,%s", comando, id, vFrota, pacoteTrama);
     tamPacote = strlen(DataSend);
     Escrita_SD(DataSend);
->>>>>>> 1517cad7be4f14c0a529eaba5bea759641ec8fee
     /*se(manda GPRS(dataSend) == 0){
       salvacartão(dataSend);
     }*/
   }
-<<<<<<< HEAD
-   if (strcmp(quemChama, "monitoramento") == 0)
-    //GTFEW
-    comando ="GTFEW";
-    id =0;
-    sprintf(DataSend, "%s,%d,%f,%s", comando, id, vFrota, pacoteTrama);
-    tamPacote = strlen(DataSend);
-    /*se(manda GPRS(dataSend) == 0){
-      salvacartão(dataSend);
-    }*/
-=======
   if (strcmp(quemChama, "monitoramento") == 0)
     //GTFEW
     comando = "GTFEW";
@@ -554,6 +527,7 @@ void monta_trama(char quemChama[100], char pacoteTrama[300]) //função que cham
   /*se(manda GPRS(dataSend) == 0){
       salvacartão(dataSend);
     }*/
+    
 }
 
 int GPRS(String dados_GPRS)
@@ -585,7 +559,6 @@ void Escrita_SD(char *Data_proSD)
         // if the file didn't open, print an error:
         Serial.println("error opening test.txt");
       }
->>>>>>> 1517cad7be4f14c0a529eaba5bea759641ec8fee
 }
 
 void tela_connectada()
@@ -952,7 +925,6 @@ void loop()
   delay(1000);
 }
 
-
 void init() {
   //Fcunçoes para iniciar as comunicações!
   MySerial.begin(9600, SERIAL_8N1, 16, 17);
@@ -981,8 +953,6 @@ void recebe_monit(String trama){//se chegou algo na seria Zigbee chama essa fun�
 return;
 }
 
-
-
 int valida_cksum(String trama,int r){ //valida se o checksum esta correto
   int tam = trama.length();
   String trama_comp = trama;
@@ -995,7 +965,6 @@ int valida_cksum(String trama,int r){ //valida se o checksum esta correto
 
 }
 
-
 void send_monit(char* vFrota,char Equipamento,char* vEstado, float Vel, float Spin, double Latitude,double Longitude) { //monta a trama e envia ZB
   char trama[200] = "";
   sprintf(trama,"Q,%s,%c,%s,%.2f,%.2f,%.6lf,%.6lf,",vFrota,Equipamento,vEstado,Vel,Spin,Latitude,Longitude);
@@ -1003,8 +972,6 @@ void send_monit(char* vFrota,char Equipamento,char* vEstado, float Vel, float Sp
   MySerial.println(trama);
   return;
 }
-
-
 
 String checksum (String vetor,int r){  ///calcula o checksum
     char res[4] = "";
@@ -1023,7 +990,6 @@ String checksum (String vetor,int r){  ///calcula o checksum
     else if (strlen(res) == 4) sprintf(ck,"%c%c",res[2],res[3]);
     return ck;
 }
-
 
 void conf(){ //setas as configurações iniciais do Zigbee
   String teste;
@@ -1049,5 +1015,3 @@ void conf(){ //setas as configurações iniciais do Zigbee
   Serial.println(teste);   
   return;
   }
-
-
